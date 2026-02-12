@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String    @id @default(cuid())
+  name        String
+  email       String    @unique
+  password    String    // hash bcrypt
+  role        String    // admin | user (user = employé avec compte)
+  employeeId  String?   @unique // lien vers l'employé (un compte par employé)
+  createdAt   DateTime  @default(now())
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  transferRequestsRequested TransferRequest[] @relation("RequestedBy")
+  transferRequestsDecided   TransferRequest[] @relation("DecidedBy")
+}
+
+model TransferRequest {
+  id             String    @id @default(cuid())
+  productId      String
+  quantity       Int
+  returnToStock  Boolean   @default(false)  // true = retour au stock, false = vers un employé
+  toEmployeeId   String?   // bénéficiaire (null si returnToStock)
+  locationId     String?
+  purpose        String?
+  status         String    @default("pending") // pending | approved | rejected
+  requestedById  String
+  requestedAt    DateTime  @default(now())
+  decidedById    String?
+  decidedAt      DateTime?
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  toEmployee     Employee? @relation(fields: [toEmployeeId], references: [id], onDelete: SetNull)
+  location       Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  requestedBy    User      @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  decidedBy      User?     @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  employeeTransfer EmployeeTransfer?
+}
+
+model EmployeeTransfer {
+  id                String   @id @default(cuid())
+  fromEmployeeId    String   // employé qui donne (réduit son stock)
+  toEmployeeId      String?  // employé qui reçoit, ou null = retour au stock
+  productId         String
+  quantity          Int
+  date              DateTime @default(now())
+  transferRequestId String?  @unique
+  fromEmployee      Employee @relation("TransfersFrom", fields: [fromEmployeeId], references: [id], onDelete: Cascade)
+  toEmployee        Employee? @relation("TransfersTo", fields: [toEmployeeId], references: [id], onDelete: SetNull)
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  transferRequest   TransferRequest? @relation(fields: [transferRequestId], references: [id], onDelete: SetNull)
+}
+
+model Location {
+  id               String           @id @default(cuid())
+  name             String
+  officeNumber     String?          // numéro de bureau
+  building         String?
+  assets           Asset[]
+  stockExits       StockExit[]
+  transferRequests TransferRequest[]
+}
+
+model Employee {
+  id                String           @id @default(cuid())
+  name              String
+  position          String?          // poste
+  department        String?          // département
+  assets            Asset[]
+  stockExits        StockExit[]
+  transferRequestsTo TransferRequest[]
+  user              User?            // compte de connexion (créé par l'admin)
+  transfersFrom     EmployeeTransfer[] @relation("TransfersFrom")
+  transfersTo       EmployeeTransfer[] @relation("TransfersTo")
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  contact     String?
+  entries     StockEntry[]
+}
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  name      String
+  products  Product[]
+}
+
+model Unit {
+  id        String    @id @default(cuid())
+  name      String
+  symbol    String?   // ex: pce, kg
+  products  Product[]
+}
+
+model ObservationType {
+  id    String   @id @default(cuid())
+  label String
+}
+
+model Asset {
+  id            String   @id @default(cuid())
+  assetCode     String   // code équipement
+  assetName     String
+  category      String   // PC, Imprimante, Bureau, All-in-one, Équipement
+  brand         String?
+  model         String?
+  serialNumber  String?
+  purchaseDate  DateTime?
+  invoiceDate   DateTime?
+  supplier      String?
+  status        String   @default("actif") // actif, endommagé, réformé
+  locationId    String?
+  assignedToId  String?
+  productId     String?  // lien vers produit (achat / référence)
+  notes         String?
+  observation   String?  // type d'observation (référence ObservationType ou texte)
+  location      Location?  @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  assignedTo    Employee?  @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  product       Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  history       AssetHistory[]
+}
+
+model AssetHistory {
+  id              String   @id @default(cuid())
+  assetId         String
+  previousLocation String?
+  newLocation     String?
+  previousUser    String?
+  newUser         String?
+  actionType      String   // assignation, déplacement, réforme
+  date            DateTime @default(now())
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id                String            @id @default(cuid())
+  name              String
+  code              String?           // code produit
+  barcode           String?            // code-barres
+  category          String
+  categoryId        String?
+  unit              String
+  unitId            String?
+  minimumThreshold  Int                @default(0)
+  productCategory   ProductCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unitRef           Unit?             @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  entries           StockEntry[]
+  exits             StockExit[]
+  assets            Asset[]
+  transferRequests  TransferRequest[]
+  employeeTransfers EmployeeTransfer[]
+}
+
+model StockEntry {
+  id            String   @id @default(cuid())
+  productId     String
+  quantity      Int
+  purchaseDate  DateTime @default(now())
+  supplierId    String?
+  supplier      String?  // texte libre si pas de fournisseur lié
+  invoiceNumber String?
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierRef   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+}
+
+model StockExit {
+  id          String    @id @default(cuid())
+  productId   String
+  quantity    Int
+  date        DateTime  @default(now())
+  employeeId  String?   // bénéficiaire / assigné à
+  locationId  String?   // destination (Lieu / Bureau)
+  observation String?   // type ou texte libre
+  purpose     String?   // motif supplémentaire
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  location    Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+}
