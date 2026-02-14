@@ -25,6 +25,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           role: user.role,
           employeeId: user.employeeId ?? undefined,
+          allowedProductTypes: user.allowedProductTypes ?? undefined,
         };
       },
     }),
@@ -35,6 +36,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.employeeId = (user as { employeeId?: string }).employeeId;
+        token.allowedProductTypes = (user as { allowedProductTypes?: string }).allowedProductTypes;
       }
       return token;
     },
@@ -43,6 +45,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as { id?: string }).id = token.id as string;
         (session.user as { role?: string }).role = token.role as string;
         (session.user as { employeeId?: string }).employeeId = token.employeeId as string | undefined;
+        (session.user as { allowedProductTypes?: string }).allowedProductTypes = token.allowedProductTypes as string | undefined;
       }
       return session;
     },

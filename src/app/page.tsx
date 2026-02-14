@@ -51,10 +51,10 @@ export default function DashboardPage() {
     const pending = myRequests.filter((r) => r.status === "pending");
     return (
       <div className="space-y-8">
-        <h1 className="text-2xl font-bold text-slate-800">Tableau de bord</h1>
-        <p className="text-slate-600">Bienvenue, {session?.user?.name}. Voici votre équipement et vos demandes.</p>
+        <h1 className="page-title">Tableau de bord</h1>
+        <p className="text-slate-600 text-lg">Bienvenue, <span className="font-semibold text-slate-800">{session?.user?.name}</span>. Voici votre équipement et vos demandes.</p>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
             <h2 className="font-semibold flex items-center gap-2">
               <Box className="w-5 h-5" /> Votre équipement
@@ -77,7 +77,7 @@ export default function DashboardPage() {
           </ul>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
             <h2 className="font-semibold flex items-center gap-2">
               <Send className="w-5 h-5" /> Vos demandes
@@ -106,11 +106,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-slate-800">Tableau de bord</h1>
+      <h1 className="page-title">Tableau de bord</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
-          <div className="flex items-center gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
             <div className="p-2 bg-primary-100 rounded-lg">
               <Package className="w-6 h-6 text-primary-600" />
             </div>
@@ -120,8 +120,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
-          <div className="flex items-center gap-3">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
             <div className="p-2 bg-amber-100 rounded-lg">
               <AlertTriangle className="w-6 h-6 text-amber-600" />
             </div>
@@ -131,8 +131,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
-          <div className="flex items-center gap-3">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-4">
             <div className="p-2 bg-rose-100 rounded-lg">
               <AlertTriangle className="w-6 h-6 text-rose-600" />
             </div>

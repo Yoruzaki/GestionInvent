@@ -5,9 +5,10 @@ declare module "next-auth" {
     id?: string;
     role?: string;
     employeeId?: string;
+    allowedProductTypes?: string; // "equipment" | "consumable" | "equipment,consumable" | null = all
   }
   interface Session {
-    user: User & { id?: string; role?: string; employeeId?: string };
+    user: User & { id?: string; role?: string; employeeId?: string; allowedProductTypes?: string };
   }
 }
 
@@ -16,5 +17,6 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     employeeId?: string;
+    allowedProductTypes?: string;
   }
 }

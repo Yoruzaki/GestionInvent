@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Users, Plus, Truck, Tag, FolderOpen, Ruler, Eye } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { MapPin, Users, Plus, Truck, Tag, FolderOpen, Ruler, Eye, Shield } from "lucide-react";
 
 type Location = { id: string; name: string; officeNumber: string | null; building: string | null };
 type Employee = { id: string; name: string; position: string | null; department: string | null; user?: { id: string; email: string } | null };
@@ -10,7 +11,7 @@ type ProductCategory = { id: string; name: string };
 type Unit = { id: string; name: string; symbol: string | null };
 type ObservationType = { id: string; label: string };
 
-type ParamSection = "lieux" | "employes" | "fournisseurs" | "observations" | "categories" | "unites";
+type ParamSection = "lieux" | "employes" | "fournisseurs" | "observations" | "categories" | "unites" | "admins";
 
 function SectionHeader({
   title,
@@ -50,7 +51,7 @@ export default function ParametresPage() {
   const [locForm, setLocForm] = useState({ name: "", officeNumber: "", building: "" });
   const [empForm, setEmpForm] = useState({ name: "", position: "", department: "" });
   const [supplierForm, setSupplierForm] = useState({ name: "", contact: "" });
-  const [catForm, setCatForm] = useState({ name: "" });
+  const [catForm, setCatForm] = useState({ name: "", productType: "equipment" as "equipment" | "consumable" });
   const [unitForm, setUnitForm] = useState({ name: "", symbol: "" });
   const [obsForm, setObsForm] = useState({ label: "" });
 
@@ -62,6 +63,13 @@ export default function ParametresPage() {
   const [showObsForm, setShowObsForm] = useState(false);
   const [accountForId, setAccountForId] = useState<string | null>(null);
   const [accountForm, setAccountForm] = useState({ email: "", password: "" });
+  const [admins, setAdmins] = useState<{ id: string; name: string; email: string; allowedProductTypes: string | null }[]>([]);
+  const [editingAdminId, setEditingAdminId] = useState<string | null>(null);
+  const [adminPermForm, setAdminPermForm] = useState<"all" | "equipment" | "consumable">("all");
+  const [showAddAdminForm, setShowAddAdminForm] = useState(false);
+  const [addAdminForm, setAddAdminForm] = useState({ name: "", email: "", password: "", allowedProductTypes: "all" as "all" | "equipment" | "consumable" });
+  const { data: session } = useSession();
+  const isSuperAdmin = (session?.user as { allowedProductTypes?: string } | undefined)?.allowedProductTypes == null;
 
   const load = () => {
     Promise.all([
@@ -71,13 +79,15 @@ export default function ParametresPage() {
       fetch("/api/product-categories").then((r) => r.json()),
       fetch("/api/units").then((r) => r.json()),
       fetch("/api/observation-types").then((r) => r.json()),
-    ]).then(([l, e, s, c, u, o]) => {
+      fetch("/api/users").then((r) => (r.ok ? r.json() : [])),
+    ]).then(([l, e, s, c, u, o, a]) => {
       setLocations(l);
       setEmployees(e);
       setSuppliers(s);
       setCategories(c);
       setUnits(u);
       setObservationTypes(o);
+      setAdmins(Array.isArray(a) ? a : []);
     });
   };
 
@@ -132,10 +142,10 @@ export default function ParametresPage() {
     const res = await fetch("/api/product-categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: catForm.name }),
+      body: JSON.stringify({ name: catForm.name, productType: catForm.productType }),
     });
     if (res.ok) {
-      setCatForm({ name: "" });
+      setCatForm({ name: "", productType: "equipment" });
       setShowCatForm(false);
       load();
     }
@@ -224,6 +234,7 @@ export default function ParametresPage() {
             ["observations", "Observations", Eye],
             ["categories", "Catégories de produit", FolderOpen],
             ["unites", "Unités", Ruler],
+            ["admins", "Administrateurs", Shield],
           ] as [ParamSection, string, React.ElementType][]
         ).map(([key, label, Icon]) => (
           <button
@@ -403,6 +414,13 @@ export default function ParametresPage() {
                 <label className="block text-xs font-medium text-slate-500">Nom *</label>
                 <input required value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className={inputClass} placeholder="ex. Bureau, Entretien" />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Type de produit</label>
+                <select value={catForm.productType} onChange={(e) => setCatForm({ ...catForm, productType: e.target.value as "equipment" | "consumable" })} className={inputClass}>
+                  <option value="equipment">Équipement</option>
+                  <option value="consumable">Consommable</option>
+                </select>
+              </div>
               <button type="submit" className="py-2 px-4 rounded bg-primary-600 text-white text-sm hover:bg-primary-700">Enregistrer</button>
               <button type="button" onClick={() => setShowCatForm(false)} className="py-2 px-4 rounded border border-slate-300 text-sm">Annuler</button>
             </form>
@@ -410,13 +428,168 @@ export default function ParametresPage() {
           <ul className="divide-y divide-slate-100">
             {categories.map((c) => (
               <li key={c.id} className="px-4 py-3 flex justify-between items-center">
-                <span>{c.name}</span>
+                <span>
+                  <strong>{c.name}</strong>
+                  {(c as { productType?: string }).productType && (
+                    <span className={`ml-2 inline-flex px-2 py-0.5 rounded-full text-xs ${(c as { productType?: string }).productType === "consumable" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
+                      {(c as { productType?: string }).productType === "consumable" ? "Consommable" : "Équipement"}
+                    </span>
+                  )}
+                </span>
                 <button type="button" onClick={() => deleteCategory(c.id)} className="text-rose-600 text-sm hover:underline">Supprimer</button>
               </li>
             ))}
             {categories.length === 0 && !showCatForm && <li className="px-4 py-6 text-slate-500 text-sm">Aucune catégorie. Ajoutez-en pour les produits.</li>}
           </ul>
         </section>
+      )}
+
+      {openSection === "admins" && (
+        <section className="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary-600" />
+              <span className="font-semibold">Administrateurs — Rôles et types de produit</span>
+            </div>
+            {isSuperAdmin && (
+              <button type="button" onClick={() => setShowAddAdminForm(true)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm hover:bg-primary-700">
+                <Plus className="w-4 h-4" /> Ajouter un admin
+              </button>
+            )}
+          </div>
+          <p className="px-4 py-2 text-sm text-slate-600 border-b border-slate-100">
+            Chaque admin ne voit et ne valide que les demandes liées à ses types. Le super-admin peut créer des admins et définir leurs types autorisés.
+          </p>
+          {showAddAdminForm && isSuperAdmin && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const res = await fetch("/api/users", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    name: addAdminForm.name,
+                    email: addAdminForm.email,
+                    password: addAdminForm.password,
+                    allowedProductTypes: addAdminForm.allowedProductTypes === "all" ? null : addAdminForm.allowedProductTypes,
+                  }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  setShowAddAdminForm(false);
+                  setAddAdminForm({ name: "", email: "", password: "", allowedProductTypes: "all" });
+                  load();
+                } else {
+                  alert(data.error || "Erreur");
+                }
+              }}
+              className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap gap-3 items-end"
+            >
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Nom *</label>
+                <input required value={addAdminForm.name} onChange={(e) => setAddAdminForm({ ...addAdminForm, name: e.target.value })} className="mt-0.5 rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Jean Dupont" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Email *</label>
+                <input required type="email" value={addAdminForm.email} onChange={(e) => setAddAdminForm({ ...addAdminForm, email: e.target.value })} className="mt-0.5 rounded border border-slate-300 px-3 py-2 text-sm" placeholder="admin@etablissement.local" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Mot de passe *</label>
+                <input required type="password" minLength={6} value={addAdminForm.password} onChange={(e) => setAddAdminForm({ ...addAdminForm, password: e.target.value })} className="mt-0.5 rounded border border-slate-300 px-3 py-2 text-sm" placeholder="••••••" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500">Types autorisés</label>
+                <select value={addAdminForm.allowedProductTypes} onChange={(e) => setAddAdminForm({ ...addAdminForm, allowedProductTypes: e.target.value as "all" | "equipment" | "consumable" })} className="mt-0.5 rounded border border-slate-300 px-3 py-2 text-sm">
+                  <option value="all">Tous (équipement + consommable)</option>
+                  <option value="equipment">Équipement uniquement</option>
+                  <option value="consumable">Consommable uniquement</option>
+                </select>
+              </div>
+              <button type="submit" className="py-2 px-4 rounded bg-primary-600 text-white text-sm hover:bg-primary-700">Créer</button>
+              <button type="button" onClick={() => { setShowAddAdminForm(false); setAddAdminForm({ name: "", email: "", password: "", allowedProductTypes: "all" }); }} className="py-2 px-4 rounded border border-slate-300 text-sm">Annuler</button>
+            </form>
+          )}
+          <ul className="divide-y divide-slate-100">
+            {admins.map((a) => (
+              <li key={a.id} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+                <span><strong>{a.name}</strong> — {a.email}</span>
+                <div className="flex items-center gap-2">
+                  {a.allowedProductTypes == null ? (
+                    <span className="text-emerald-600 text-sm font-medium">Tous les types</span>
+                  ) : (
+                    <span className="text-slate-600 text-sm">
+                      {a.allowedProductTypes === "equipment" ? "Équipement uniquement" : a.allowedProductTypes === "consumable" ? "Consommable uniquement" : a.allowedProductTypes}
+                    </span>
+                  )}
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingAdminId(a.id);
+                        const apt = a.allowedProductTypes;
+                        setAdminPermForm(apt === "equipment" ? "equipment" : apt === "consumable" ? "consumable" : "all");
+                      }}
+                      className="text-primary-600 text-sm hover:underline"
+                    >
+                      Modifier
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+            {admins.length === 0 && !showAddAdminForm && <li className="px-4 py-6 text-slate-500 text-sm">Aucun administrateur.</li>}
+          </ul>
+        </section>
+      )}
+
+      {editingAdminId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-4">
+            <h3 className="font-semibold mb-3">Types de produits autorisés</h3>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const value = adminPermForm === "all" ? null : adminPermForm === "equipment" ? "equipment" : "consumable";
+                const res = await fetch(`/api/users/${editingAdminId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ allowedProductTypes: value === null ? "equipment,consumable" : value }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  setEditingAdminId(null);
+                  load();
+                } else {
+                  alert(data.error || "Erreur");
+                }
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="adminPerm" checked={adminPermForm === "all"} onChange={() => setAdminPermForm("all")} />
+                  Tous les types (équipement + consommable)
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="adminPerm" checked={adminPermForm === "equipment"} onChange={() => setAdminPermForm("equipment")} />
+                  Équipement uniquement
+                </label>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="adminPerm" checked={adminPermForm === "consumable"} onChange={() => setAdminPermForm("consumable")} />
+                  Consommable uniquement
+                </label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700">Enregistrer</button>
+                <button type="button" onClick={() => setEditingAdminId(null)} className="px-4 py-2 rounded-lg border border-slate-300">Annuler</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {openSection === "unites" && (

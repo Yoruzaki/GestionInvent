@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, ArrowDownCircle, ArrowUpCircle, HelpCircle } from "lucide-react";
+import { Activity, ArrowDownCircle, ArrowUpCircle, HelpCircle, FileSpreadsheet } from "lucide-react";
 
 type EntryItem = {
   id: string;
@@ -65,16 +65,30 @@ export default function MouvementsPage() {
     });
   events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const exportExcel = () => window.open("/api/export/mouvements", "_blank");
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-800">Mouvements</h1>
+          <h1 className="page-title flex items-center gap-3">
+            <div className="p-2 bg-primary-100 rounded-xl">
+              <Activity className="w-7 h-7 text-primary-600" />
+            </div>
+            Mouvements
+          </h1>
           <button type="button" onClick={() => setShowHelp(!showHelp)} className="p-1.5 rounded-full hover:bg-slate-200 text-slate-500" title="Aide">
             <HelpCircle className="w-5 h-5" />
           </button>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={exportExcel}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-medium text-sm shadow-sm"
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Exporter Excel
+          </button>
           <button
             type="button"
             onClick={() => setFilter("tous")}

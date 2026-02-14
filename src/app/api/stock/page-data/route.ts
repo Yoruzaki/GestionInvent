@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 /**
  * Single endpoint for all data needed by the Stock page.
- * One request = one round-trip and one compilation in dev (instead of 8).
+ * All admins see full stock; actions (entries/exits) are limited by type at POST.
  */
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || (session.user as { role?: string }).role !== "admin") {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
   const [
     products,
     entries,

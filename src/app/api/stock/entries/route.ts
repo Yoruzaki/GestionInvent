@@ -22,6 +22,11 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { productId, quantity, purchaseDate, supplierId, supplier, invoiceNumber } = body;
   if (!productId || quantity == null) return NextResponse.json({ error: "Produit et quantité requis" }, { status: 400 });
+  const product = await prisma.product.findUnique({ where: { id: productId } });
+  if (!product) return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+  const allowed = (await import("@/lib/product-types")).getAllowedTypes((session.user as { allowedProductTypes?: string }).allowedProductTypes);
+  if (allowed && !allowed.includes(product.productType as "equipment" | "consumable"))
+    return NextResponse.json({ error: "Vous n'avez pas le droit de gérer ce type de produit" }, { status: 403 });
   const entry = await prisma.stockEntry.create({
     data: {
       productId,

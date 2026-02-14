@@ -11,19 +11,25 @@ export async function GET() {
   const employeeId = (session.user as { employeeId?: string }).employeeId;
   if (!employeeId) return NextResponse.json([]);
 
-  let exits: Awaited<ReturnType<typeof prisma.stockExit.findMany>>;
-  let outTransfers: Awaited<ReturnType<typeof prisma.employeeTransfer.findMany>> = [];
-  let inTransfers: Awaited<ReturnType<typeof prisma.employeeTransfer.findMany>> = [];
+  type ExitWithProduct = Awaited<ReturnType<typeof prisma.stockExit.findMany>>[number] & { product: { id: string; name: string; unit: string } };
+  type TransferWithProduct = Awaited<ReturnType<typeof prisma.employeeTransfer.findMany>>[number] & { product: { id: string; name: string; unit: string } };
+
+  let exits: ExitWithProduct[];
+  let outTransfers: TransferWithProduct[] = [];
+  let inTransfers: TransferWithProduct[] = [];
 
   try {
-    [exits, outTransfers, inTransfers] = await Promise.all([
+    const [ex, out, in_] = await Promise.all([
       prisma.stockExit.findMany({ where: { employeeId }, include: { product: true } }),
       prisma.employeeTransfer.findMany({ where: { fromEmployeeId: employeeId }, include: { product: true } }),
       prisma.employeeTransfer.findMany({ where: { toEmployeeId: employeeId }, include: { product: true } }),
     ]);
-  } catch (err) {
+    exits = ex as ExitWithProduct[];
+    outTransfers = out as TransferWithProduct[];
+    inTransfers = in_ as TransferWithProduct[];
+  } catch {
     // Prisma client may not have employeeTransfer (run: npx prisma generate)
-    exits = await prisma.stockExit.findMany({ where: { employeeId }, include: { product: true } });
+    exits = await prisma.stockExit.findMany({ where: { employeeId }, include: { product: true } }) as ExitWithProduct[];
   }
 
   const byProduct = new Map<string, { product: { id: string; name: string; unit: string }; quantity: number }>();

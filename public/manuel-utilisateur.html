@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manuel utilisateur — HNSF Inventaire</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.6;
+      color: #1e293b;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: #fff;
+    }
+    h1 {
+      color: #166534;
+      font-size: 1.8rem;
+      border-bottom: 3px solid #16a34a;
+      padding-bottom: 0.5rem;
+      margin-top: 2.5rem;
+    }
+    h1:first-of-type { margin-top: 0; }
+    h2 { color: #166534; font-size: 1.3rem; margin-top: 1.8rem; }
+    h3 { color: #334155; font-size: 1.1rem; margin-top: 1.3rem; }
+    p { margin: 0.6rem 0; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    li { margin: 0.3rem 0; }
+    .intro {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .note {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 0.8rem 1rem;
+      margin: 1rem 0;
+    }
+    .step { margin: 1rem 0; padding-left: 1rem; border-left: 3px solid #16a34a; }
+    .toc { background: #f8fafc; padding: 1.25rem; border-radius: 8px; margin: 1.5rem 0; }
+    .toc ul { list-style: none; padding-left: 0; }
+    .toc a { color: #16a34a; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    .role-box {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 0.2rem;
+    }
+    .role-admin { background: #dcfce7; color: #166534; }
+    .role-user { background: #dbeafe; color: #1e40af; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 0.6rem 0.8rem; text-align: left; }
+    th { background: #f1f5f9; font-weight: 600; }
+    @media print {
+      body { padding: 1rem; }
+      h1 { page-break-after: avoid; }
+      h2, h3 { page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Manuel utilisateur — Système d'inventaire HNSF</h1>
+<p><strong>Version 1.0</strong> — HNSF — Higher National School of Forests</p>
+
+<div class="intro">
+  Ce manuel décrit l'utilisation du système de gestion des stocks et de l'inventaire de l'établissement. Il s'adresse aux utilisateurs finaux (administrateurs et employés) et ne nécessite aucune connaissance technique particulière.
+</div>
+
+<h2>Table des matières</h2>
+<nav class="toc">
+  <ul>
+    <li>1. <a href="#connexion">Connexion</a></li>
+    <li>2. <a href="#roles">Rôles et types d'utilisateurs</a></li>
+    <li>3. <a href="#interface">Présentation de l'interface</a></li>
+    <li>4. <a href="#tableau-de-bord">Tableau de bord</a></li>
+    <li>5. <a href="#stock">Stock</a></li>
+    <li>6. <a href="#mouvements">Mouvements</a></li>
+    <li>7. <a href="#rapports">Rapports</a></li>
+    <li>8. <a href="#parametres">Paramètres</a></li>
+    <li>9. <a href="#demandes">Demandes à valider (admin)</a></li>
+    <li>10. <a href="#mon-equipement">Mon équipement (employé)</a></li>
+    <li>11. <a href="#mes-demandes">Mes demandes (employé)</a></li>
+    <li>12. <a href="#messages">Messages</a></li>
+    <li>13. <a href="#notifications">Notifications</a></li>
+  </ul>
+</nav>
+
+<h1 id="connexion">1. Connexion</h1>
+<p>Ouvrez l'application dans votre navigateur (adresse fournie par l'établissement, par exemple <code>http://inventaire.ensf</code> ou une adresse IP locale).</p>
+<h3>Étapes</h3>
+<ol>
+  <li>Entrez votre <strong>adresse e-mail</strong> (fournie par l'administrateur)</li>
+  <li>Entrez votre <strong>mot de passe</strong></li>
+  <li>Cliquez sur <strong>Se connecter</strong></li>
+</ol>
+<p>En cas d'erreur « Email ou mot de passe incorrect », vérifiez vos identifiants ou contactez l'administrateur pour réinitialiser votre mot de passe.</p>
+
+<h1 id="roles">2. Rôles et types d'utilisateurs</h1>
+<p>L'application distingue deux types d'utilisateurs :</p>
+<table>
+  <tr>
+    <th>Rôle</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><span class="role-box role-admin">Administrateur</span></td>
+    <td>Gère le stock, les entrées/sorties, les demandes, les paramètres, les rapports. Peut être limité à certains types de produits (équipements ou consommables). Le <strong>Super Admin</strong> a tous les droits.</td>
+  </tr>
+  <tr>
+    <td><span class="role-box role-user">Employé</span></td>
+    <td>Consulte son équipement, envoie des demandes de transfert, reçoit des messages et des notifications.</td>
+  </tr>
+</table>
+
+<h1 id="interface">3. Présentation de l'interface</h1>
+<p>Après connexion, vous voyez :</p>
+<ul>
+  <li><strong>La barre latérale (sidebar) à gauche</strong> : liens de navigation selon votre rôle</li>
+  <li><strong>La zone principale</strong> : contenu de la page sélectionnée</li>
+  <li><strong>En bas de la sidebar</strong> : icônes Messages et Notifications, puis votre compte (nom, e-mail, rôle) et le bouton Se déconnecter</li>
+</ul>
+<p>Sur mobile, un bouton menu en haut à gauche permet d'ouvrir la barre de navigation.</p>
+
+<h1 id="tableau-de-bord">4. Tableau de bord</h1>
+<p>Première page affichée après connexion.</p>
+
+<h3>Pour les administrateurs</h3>
+<ul>
+  <li><strong>Total produits</strong> : nombre total de produits référencés</li>
+  <li><strong>Stock bas</strong> : produits dont le stock est inférieur ou égal au seuil d'alerte</li>
+  <li><strong>Ruptures</strong> : produits en rupture de stock (stock = 0)</li>
+  <li><strong>Derniers mouvements</strong> : dernières entrées et sorties de stock</li>
+</ul>
+
+<h3>Pour les employés</h3>
+<ul>
+  <li>Aperçu de votre équipement attribué</li>
+  <li>Liste de vos demandes en attente</li>
+</ul>
+
+<h1 id="stock">5. Stock</h1>
+<p>Page centrale pour la gestion des produits. Tous les administrateurs voient l'ensemble du stock.</p>
+
+<h3>5.1 Liste du stock actuel</h3>
+<p>Tableau affichant : produit, type (équipement/consommable), code, catégorie, statut (En stock / Faible / Rupture), entrées, sorties, stock actuel, seuil d'alerte.</p>
+<p><strong>Filtres disponibles</strong> : recherche par nom/code, statut, type de produit, catégorie.</p>
+<p><strong>Export Excel</strong> : bouton « Exporter Excel » pour télécharger l'inventaire complet.</p>
+
+<h3>5.2 Nouveau produit</h3>
+<p>Onglet réservé aux administrateurs. Pour ajouter un produit :</p>
+<ol>
+  <li>Cliquez sur <strong>Nouveau produit</strong></li>
+  <li>Choisissez le type : <strong>Équipement</strong> (PC, bureau, matériel durable) ou <strong>Consommable</strong> (papier, produits d'entretien)</li>
+  <li>Renseignez : nom, code, code-barres, catégorie, unité, seuil d'alerte</li>
+  <li>Optionnel : premier achat (date, quantité, fournisseur, n° facture)</li>
+  <li>Cliquez sur <strong>Ajouter le produit</strong></li>
+</ol>
+
+<h3>5.3 Entrée de stock</h3>
+<p>Enregistrer une entrée (achat, réception).</p>
+<ol>
+  <li>Cliquez sur <strong>Entrée</strong></li>
+  <li>Sélectionnez le produit (recherche ou liste déroulante)</li>
+  <li>Indiquez la quantité</li>
+  <li>Fournisseur et n° facture (optionnel)</li>
+  <li>Cliquez sur <strong>Enregistrer l'entrée</strong></li>
+</ol>
+<div class="note">Chaque administrateur ne peut enregistrer des entrées que pour les types de produits qu'il est autorisé à gérer.</div>
+
+<h3>5.4 Sortie de stock</h3>
+<p>Enregistrer une sortie (attribution à un employé ou un lieu).</p>
+<ol>
+  <li>Cliquez sur <strong>Sortie</strong></li>
+  <li>Sélectionnez le produit</li>
+  <li>Indiquez la quantité</li>
+  <li>Choisissez le bénéficiaire (employé) et/ou la destination (lieu/bureau)</li>
+  <li>Observation et motif (optionnel)</li>
+  <li>Cliquez sur <strong>Enregistrer la sortie</strong></li>
+</ol>
+
+<h3>5.5 Demander une sortie (employé)</h3>
+<p>Les employés ayant un compte peuvent demander une sortie depuis la page Stock (onglet « Demander une sortie ») ou depuis « Mon équipement ». La demande doit être validée par un administrateur.</p>
+
+<h1 id="mouvements">6. Mouvements</h1>
+<p>Page listant tous les mouvements (entrées et sorties) de stock, par date. Filtres : Tous, Entrées, Sorties.</p>
+<p><strong>Export Excel</strong> : bouton pour télécharger les mouvements en fichier Excel.</p>
+
+<h1 id="rapports">7. Rapports</h1>
+<p>Page réservée aux administrateurs. Quatre types de rapports :</p>
+<table>
+  <tr><th>Type</th><th>Contenu</th></tr>
+  <tr><td>Stock actuel</td><td>Liste des produits avec stock</td></tr>
+  <tr><td>Équipements par lieu</td><td>Nombre d'équipements par lieu/bureau</td></tr>
+  <tr><td>Équipements par personne</td><td>Nombre d'équipements par employé</td></tr>
+  <tr><td>Consommation par mois</td><td>Sorties regroupées par mois avec détails</td></tr>
+</table>
+<p>Boutons d'export : <strong>CSV</strong> et <strong>Excel</strong> pour télécharger le rapport sélectionné.</p>
+
+<h1 id="parametres">8. Paramètres</h1>
+<p>Page de configuration réservée aux administrateurs. Sept sections :</p>
+
+<h3>8.1 Lieux / Bureaux</h3>
+<p>Gérer les lieux (bureaux, salles) : nom, n° bureau, bâtiment.</p>
+
+<h3>8.2 Employés</h3>
+<p>Ajouter des employés : nom, poste, département. Pour chaque employé, vous pouvez <strong>Créer un compte</strong> (e-mail + mot de passe) afin qu'il puisse se connecter et consulter son équipement.</p>
+
+<h3>8.3 Fournisseurs</h3>
+<p>Gérer la liste des fournisseurs avec leurs coordonnées.</p>
+
+<h3>8.4 Observations</h3>
+<p>Types d'observations utilisés lors des sorties de stock (ex. : maintenance, urgence).</p>
+
+<h3>8.5 Catégories de produit</h3>
+<p>Catégories pour classer les produits (Équipement ou Consommable).</p>
+
+<h3>8.6 Unités</h3>
+<p>Unités de mesure (pièce, boîte, rame, litre, kg, etc.).</p>
+
+<h3>8.7 Administrateurs</h3>
+<p>Réservé au <strong>Super Admin</strong>. Permet d'ajouter des administrateurs et de leur attribuer des types de produits autorisés : Tous, Équipements uniquement, ou Consommables uniquement.</p>
+
+<h1 id="demandes">9. Demandes à valider</h1>
+<p>Page réservée aux administrateurs. Liste des demandes de transfert envoyées par les employés.</p>
+<p><strong>En attente</strong> : demandes non encore traitées. Pour chaque demande :</p>
+<ul>
+  <li><strong>Accepter</strong> : le transfert est effectué (équipement retiré au demandeur, attribué au bénéficiaire ou retourné au stock)</li>
+  <li><strong>Refuser</strong> : la demande est refusée</li>
+</ul>
+<p>Chaque administrateur ne voit et ne peut valider que les demandes relatives aux types de produits qu'il gère.</p>
+
+<h1 id="mon-equipement">10. Mon équipement</h1>
+<p>Page réservée aux employés. Affiche l'équipement qui vous a été attribué (sorties de stock vers vous, moins les transferts effectués).</p>
+<p>Vous pouvez <strong>demander une sortie</strong> : transférer une partie de votre équipement à un collègue ou le retourner au stock. Remplissez le formulaire (produit, quantité, bénéficiaire ou « Retour au stock ») et envoyez. L'administrateur validera la demande.</p>
+
+<h1 id="mes-demandes">11. Mes demandes</h1>
+<p>Page réservée aux employés. Liste de vos demandes de transfert avec leur statut : En attente, Acceptée, Refusée.</p>
+<p>Vous recevez une notification lorsque votre demande est acceptée ou refusée.</p>
+
+<h1 id="messages">12. Messages</h1>
+<p>Messagerie interne entre utilisateurs (admins et employés).</p>
+<h3>Envoyer un message</h3>
+<ol>
+  <li>Cliquez sur <strong>Nouveau message</strong></li>
+  <li>Sélectionnez le destinataire</li>
+  <li>Indiquez le sujet et le message</li>
+  <li>Cochez « C'est une plainte / réclamation » si nécessaire</li>
+  <li>Cliquez sur <strong>Envoyer</strong></li>
+</ol>
+<h3>Consulter les messages</h3>
+<p>Onglets <strong>Reçus</strong> et <strong>Envoyés</strong>. Cliquez sur un message pour le lire.</p>
+
+<h1 id="notifications">13. Notifications</h1>
+<p>Icône cloche dans la barre latérale : affiche les notifications non lues. Clic sur une notification pour la marquer comme lue et accéder à la page liée.</p>
+<p>Types de notifications :</p>
+<ul>
+  <li><strong>Nouvelle demande</strong> (admin) : un employé a envoyé une demande de transfert</li>
+  <li><strong>Demande acceptée / refusée</strong> (employé) : votre demande a été traitée</li>
+  <li><strong>Stock bas / Rupture</strong> (admin) : alerte sur un produit</li>
+  <li><strong>Message / Plainte</strong> : vous avez reçu un message ou une plainte</li>
+</ul>
+<p>Page <strong>Notifications</strong> : liste complète, filtre « Non lues », bouton « Tout marquer lu ».</p>
+
+<hr style="margin-top: 3rem;" />
+<p style="text-align: center; color: #64748b; font-size: 0.9rem;">
+  HNSF — Higher National School of Forests — Système d'inventaire
+</p>
+
+</body>
+</html>

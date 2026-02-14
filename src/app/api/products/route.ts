@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -35,11 +37,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || (session.user as { role?: string }).role !== "admin")
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   const body = await request.json();
   const {
     name,
     code,
     barcode,
+    productType,
     category,
     categoryId,
     unit,
@@ -52,6 +58,7 @@ export async function POST(request: Request) {
     invoiceNumber,
   } = body;
   if (!name) return NextResponse.json({ error: "Nom requis" }, { status: 400 });
+  const pt = productType === "consumable" ? "consumable" : "equipment";
   const categoryName = category ?? "bureau";
   const unitName = unit ?? "pièce";
   const product = await prisma.product.create({
@@ -59,6 +66,7 @@ export async function POST(request: Request) {
       name,
       code: code ?? null,
       barcode: barcode ?? null,
+      productType: pt,
       category: categoryName,
       categoryId: categoryId || null,
       unit: unitName,

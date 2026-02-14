@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { getAllowedTypes } from "@/lib/product-types";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -13,12 +14,17 @@ export async function GET(request: Request) {
 
   try {
     if (role === "admin") {
+      const allowed = getAllowedTypes((session.user as { allowedProductTypes?: string }).allowedProductTypes);
+      const where: { status?: string; product?: { productType: { in: string[] } } } = statusFilter === "pending" ? { status: "pending" } : {};
+      if (allowed) {
+        where.product = { productType: { in: allowed } };
+      }
       const list = await prisma.transferRequest.findMany({
-        where: statusFilter === "pending" ? { status: "pending" } : undefined,
+        where,
         orderBy: { requestedAt: "desc" },
         take: 100,
         include: {
-          product: true,
+          product: { select: { id: true, name: true, unit: true, productType: true } },
           toEmployee: true,
           location: true,
           requestedBy: { select: { id: true, name: true, email: true } },
@@ -73,8 +79,16 @@ export async function POST(request: Request) {
         purpose: purpose != null ? String(purpose) : null,
         requestedById: userId,
       },
-      include: { product: true, toEmployee: true, location: true },
+      include: { product: true, toEmployee: true, location: true, requestedBy: { select: { name: true } } },
     });
+    const { notifyAdminsForTransferRequest } = await import("@/lib/notifications");
+    await notifyAdminsForTransferRequest({
+      productType: (req.product as { productType?: string }).productType ?? "equipment",
+      productName: req.product.name,
+      requesterName: (req.requestedBy as { name?: string }).name ?? "Un employé",
+      quantity: req.quantity,
+      transferRequestId: req.id,
+    }).catch(() => {});
     return NextResponse.json(req);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur serveur";

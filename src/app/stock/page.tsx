@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Plus, Package, ArrowDownCircle, ArrowUpCircle, AlertTriangle, Pencil, Trash2, X, Search, Filter, Send } from "lucide-react";
+import { Plus, Package, ArrowDownCircle, ArrowUpCircle, AlertTriangle, Pencil, Trash2, X, Search, Filter, Send, FileSpreadsheet } from "lucide-react";
 
 type BalanceItem = {
   id: string;
   name: string;
   code?: string | null;
   barcode?: string | null;
+  productType?: string;
   category: string;
   unit: string;
   minimumThreshold: number;
@@ -18,11 +19,11 @@ type BalanceItem = {
   stockActuel: number;
 };
 
-type Product = { id: string; name: string; code?: string | null; barcode?: string | null; category: string; unit: string; minimumThreshold: number };
+type Product = { id: string; name: string; code?: string | null; barcode?: string | null; productType?: string; category: string; unit: string; minimumThreshold: number };
 type Location = { id: string; name: string; officeNumber?: string | null };
 type Employee = { id: string; name: string };
 type Supplier = { id: string; name: string };
-type ProductCategory = { id: string; name: string };
+type ProductCategory = { id: string; name: string; productType?: string };
 type Unit = { id: string; name: string; symbol?: string | null };
 type ObservationType = { id: string; label: string };
 
@@ -40,6 +41,14 @@ export default function StockPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  const allowedProductTypes = (session?.user as { allowedProductTypes?: string } | undefined)?.allowedProductTypes;
+  const allowedTypesList: string[] | null =
+    !allowedProductTypes || !allowedProductTypes.trim()
+      ? null
+      : allowedProductTypes
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s === "equipment" || s === "consumable");
 
   useEffect(() => {
     if (status === "loading") return;
@@ -54,9 +63,11 @@ export default function StockPage() {
   const [searchQ, setSearchQ] = useState("");
   const [filterStatus, setFilterStatus] = useState<"tous" | "en_stock" | "faible" | "rupture">("tous");
   const [filterCategory, setFilterCategory] = useState("");
+  const [filterProductType, setFilterProductType] = useState<"tous" | "equipment" | "consumable">("tous");
 
   const [formProduct, setFormProduct] = useState({
-    name: "", code: "", barcode: "", categoryId: "", category: "", unitId: "", unit: "", minimumThreshold: 0,
+    name: "", code: "", barcode: "", productType: "equipment" as "equipment" | "consumable",
+    categoryId: "", category: "", unitId: "", unit: "", minimumThreshold: 0,
     purchaseDate: "", quantity: 0, supplierId: "", invoiceNumber: "",
   });
   const [formEntree, setFormEntree] = useState({
@@ -72,7 +83,16 @@ export default function StockPage() {
   const [employeeSearchResults, setEmployeeSearchResults] = useState<Employee[]>([]);
   const [employeeSearching, setEmployeeSearching] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", code: "", barcode: "", category: "", unit: "", minimumThreshold: 0 });
+  const [editForm, setEditForm] = useState({ name: "", code: "", barcode: "", productType: "equipment" as "equipment" | "consumable", category: "", unit: "", minimumThreshold: 0 });
+
+  const productsForActions =
+    !isAdmin || !allowedTypesList?.length
+      ? products
+      : products.filter((p) => p.productType && allowedTypesList.includes(p.productType));
+  const searchResultsForActions =
+    !isAdmin || !allowedTypesList?.length
+      ? productSearchResults
+      : productSearchResults.filter((p) => p.productType && allowedTypesList.includes(p.productType));
 
   const load = useCallback(() => {
     setLoading(true);
@@ -135,6 +155,7 @@ export default function StockPage() {
         (b.barcode && b.barcode.includes(q));
       if (!match) return false;
     }
+    if (filterProductType !== "tous" && (b as { productType?: string }).productType !== filterProductType) return false;
     if (filterCategory && b.category !== filterCategory) return false;
     if (filterStatus === "en_stock" && (b.stockActuel <= 0 || (b.minimumThreshold > 0 && b.stockActuel <= b.minimumThreshold))) return false;
     if (filterStatus === "faible" && (b.minimumThreshold <= 0 || b.stockActuel > b.minimumThreshold || b.stockActuel <= 0)) return false;
@@ -150,6 +171,7 @@ export default function StockPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formProduct.name, code: formProduct.code || undefined, barcode: formProduct.barcode || undefined,
+        productType: formProduct.productType,
         category: categoryName, categoryId: formProduct.categoryId || undefined,
         unit: unitName, unitId: formProduct.unitId || undefined, minimumThreshold: formProduct.minimumThreshold,
         purchaseDate: formProduct.purchaseDate || undefined, quantity: formProduct.quantity,
@@ -157,10 +179,13 @@ export default function StockPage() {
       }),
     });
     if (res.ok) {
-      setFormProduct({ name: "", code: "", barcode: "", categoryId: "", category: "", unitId: "", unit: "", minimumThreshold: 0, purchaseDate: "", quantity: 0, supplierId: "", invoiceNumber: "" });
+      setFormProduct({ name: "", code: "", barcode: "", productType: "equipment", categoryId: "", category: "", unitId: "", unit: "", minimumThreshold: 0, purchaseDate: "", quantity: 0, supplierId: "", invoiceNumber: "" });
       setTab("liste");
       load();
-    } else alert("Erreur");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert((err as { error?: string }).error || "Erreur");
+    }
   };
 
   const addEntree = async (e: React.FormEvent) => {
@@ -179,7 +204,10 @@ export default function StockPage() {
       setFormEntree({ productId: "", productSearch: "", quantity: 0, supplierId: "", supplier: "", invoiceNumber: "" });
       setTab("liste");
       load();
-    } else alert("Erreur");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert((err as { error?: string }).error || "Erreur");
+    }
   };
 
   const addSortie = async (e: React.FormEvent) => {
@@ -206,7 +234,10 @@ export default function StockPage() {
       setFormSortie({ productId: "", productSearch: "", quantity: 0, employeeId: "", employeeSearch: "", locationId: "", observation: "", observationTypeId: "", purpose: "" });
       setTab("liste");
       load();
-    } else alert("Erreur");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert((err as { error?: string }).error || "Erreur");
+    }
   };
 
   const addDemande = async (e: React.FormEvent) => {
@@ -241,7 +272,7 @@ export default function StockPage() {
     const res = await fetch(`/api/products/${productId}`);
     if (!res.ok) return;
     const p = await res.json();
-    setEditForm({ name: p.name, code: p.code ?? "", barcode: p.barcode ?? "", category: p.category ?? "", unit: p.unit ?? "", minimumThreshold: p.minimumThreshold ?? 0 });
+    setEditForm({ name: p.name, code: p.code ?? "", barcode: p.barcode ?? "", productType: p.productType === "consumable" ? "consumable" : "equipment", category: p.category ?? "", unit: p.unit ?? "", minimumThreshold: p.minimumThreshold ?? 0 });
     setEditingProductId(productId);
   };
 
@@ -268,12 +299,30 @@ export default function StockPage() {
 
   if (status === "loading" || !isAdmin) return <div className="p-8 text-center text-slate-500">Chargement…</div>;
 
+  const exportExcel = () => {
+    window.open("/api/export/stock", "_blank");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">Stock</h1>
+        <h1 className="page-title flex items-center gap-3">
+          <div className="p-2 bg-primary-100 rounded-xl">
+            <Package className="w-7 h-7 text-primary-600" />
+          </div>
+          Stock
+        </h1>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setTab("liste")} className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${tab === "liste" ? "bg-primary-600 text-white" : "bg-white border border-slate-200 hover:bg-slate-50"}`}>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={exportExcel}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-medium text-sm shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" /> Exporter Excel
+            </button>
+          )}
+          <button type="button" onClick={() => setTab("liste")} className={`px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-sm ${tab === "liste" ? "bg-primary-600 text-white shadow-primary-600/20" : "bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300"}`}>
             Stock actuel
           </button>
           {isAdmin && (
@@ -299,7 +348,7 @@ export default function StockPage() {
 
       {tab === "liste" && (
         <>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -324,12 +373,21 @@ export default function StockPage() {
                   <option value="rupture">Rupture</option>
                 </select>
                 <select
+                  value={filterProductType}
+                  onChange={(e) => setFilterProductType(e.target.value as typeof filterProductType)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                >
+                  <option value="tous">Tous les types</option>
+                  <option value="equipment">Équipement</option>
+                  <option value="consumable">Consommable</option>
+                </select>
+                <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 >
                   <option value="">Toutes catégories</option>
-                  {[...new Set(balance.map((b) => b.category))].sort().map((c) => (
+                  {Array.from(new Set(balance.map((b) => b.category))).sort().map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -344,6 +402,7 @@ export default function StockPage() {
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="text-left p-4 font-semibold text-slate-700">Produit</th>
+                      <th className="text-left p-4 font-semibold text-slate-700">Type</th>
                       <th className="text-left p-4 font-semibold text-slate-700">Code / Code-barres</th>
                       <th className="text-left p-4 font-semibold text-slate-700">Catégorie</th>
                       <th className="text-left p-4 font-semibold text-slate-700">Statut</th>
@@ -358,6 +417,7 @@ export default function StockPage() {
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <tr key={i} className="border-b border-slate-100">
                         <td className="p-4"><span className="block h-4 w-32 bg-slate-200 rounded" /></td>
+                        <td className="p-4"><span className="block h-5 w-20 bg-slate-200 rounded-full" /></td>
                         <td className="p-4"><span className="block h-4 w-20 bg-slate-200 rounded" /></td>
                         <td className="p-4"><span className="block h-4 w-16 bg-slate-200 rounded" /></td>
                         <td className="p-4"><span className="block h-5 w-16 bg-slate-200 rounded-full" /></td>
@@ -377,6 +437,7 @@ export default function StockPage() {
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="text-left p-4 font-semibold text-slate-700">Produit</th>
+                      <th className="text-left p-4 font-semibold text-slate-700">Type</th>
                       <th className="text-left p-4 font-semibold text-slate-700">Code / Code-barres</th>
                       <th className="text-left p-4 font-semibold text-slate-700">Catégorie</th>
                       <th className="text-left p-4 font-semibold text-slate-700">Statut</th>
@@ -396,6 +457,11 @@ export default function StockPage() {
                         }`}
                       >
                         <td className="p-4 font-medium text-slate-800">{b.name}</td>
+                        <td className="p-4">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${(b as { productType?: string }).productType === "consumable" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"}`}>
+                            {(b as { productType?: string }).productType === "consumable" ? "Consommable" : "Équipement"}
+                          </span>
+                        </td>
                         <td className="p-4 text-slate-500 text-xs">{[b.code, b.barcode].filter(Boolean).join(" · ") || "—"}</td>
                         <td className="p-4">{b.category}</td>
                         <td className="p-4">{getStatusBadge(b)}</td>
@@ -447,6 +513,13 @@ export default function StockPage() {
             </div>
             <form onSubmit={saveEdit} className="p-4 space-y-3">
               <div>
+                <label className="block text-sm font-medium text-slate-600">Type de produit</label>
+                <select value={editForm.productType} onChange={(e) => setEditForm({ ...editForm, productType: e.target.value as "equipment" | "consumable" })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                  <option value="equipment">Équipement</option>
+                  <option value="consumable">Consommable</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-slate-600">Nom *</label>
                 <input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:ring-2 focus:ring-primary-500" />
               </div>
@@ -489,6 +562,13 @@ export default function StockPage() {
             <Package className="w-5 h-5" /> Nouveau produit
           </h2>
           <form onSubmit={addProduct} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-600">Type de produit *</label>
+              <select value={formProduct.productType} onChange={(e) => setFormProduct({ ...formProduct, productType: e.target.value as "equipment" | "consumable" })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+                <option value="equipment">Équipement (PC, bureau, matériel durable)</option>
+                <option value="consumable">Consommable (papier, produits d'entretien)</option>
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-slate-600">Nom *</label>
@@ -583,9 +663,9 @@ export default function StockPage() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               />
               {productSearching && <p className="text-xs text-slate-500 mt-0.5">Recherche…</p>}
-              {productSearchResults.length > 0 && (
+              {searchResultsForActions.length > 0 && (
                 <ul className="mt-1 border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-40 overflow-y-auto">
-                  {productSearchResults.map((p) => (
+                  {searchResultsForActions.map((p) => (
                     <li key={p.id}>
                       <button
                         type="button"
@@ -601,17 +681,17 @@ export default function StockPage() {
               {formEntree.productId && (
                 <p className="text-xs text-emerald-600 mt-1">Produit sélectionné. <button type="button" onClick={() => setFormEntree({ ...formEntree, productId: "", productSearch: "" })} className="underline">Changer</button></p>
               )}
-              {!formEntree.productId && products.length > 0 && (
+              {!formEntree.productId && productsForActions.length > 0 && (
                 <select
                   value={formEntree.productId}
                   onChange={(e) => {
-                    const p = products.find((x) => x.id === e.target.value);
+                    const p = productsForActions.find((x) => x.id === e.target.value);
                     setFormEntree({ ...formEntree, productId: e.target.value, productSearch: p ? `${p.name} (${p.unit})` : "" });
                   }}
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                 >
                   <option value="">Ou choisir dans la liste…</option>
-                  {products.map((p) => (
+                  {productsForActions.map((p) => (
                     <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
                   ))}
                 </select>
@@ -659,9 +739,9 @@ export default function StockPage() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               />
               {productSearching && <p className="text-xs text-slate-500 mt-0.5">Recherche…</p>}
-              {productSearchResults.length > 0 && (
+              {searchResultsForActions.length > 0 && (
                 <ul className="mt-1 border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-40 overflow-y-auto">
-                  {productSearchResults.map((p) => (
+                  {searchResultsForActions.map((p) => (
                     <li key={p.id}>
                       <button
                         type="button"
@@ -677,13 +757,13 @@ export default function StockPage() {
               {formSortie.productId && (
                 <p className="text-xs text-emerald-600 mt-1">Produit sélectionné. <button type="button" onClick={() => setFormSortie({ ...formSortie, productId: "", productSearch: "" })} className="underline">Changer</button></p>
               )}
-              {!formSortie.productId && products.length > 0 && (
+              {!formSortie.productId && productsForActions.length > 0 && (
                 <select value={formSortie.productId} onChange={(e) => {
-                  const p = products.find((x) => x.id === e.target.value);
+                  const p = productsForActions.find((x) => x.id === e.target.value);
                   setFormSortie({ ...formSortie, productId: e.target.value, productSearch: p ? `${p.name} (${p.unit})` : "" });
                 }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
                   <option value="">Ou choisir dans la liste…</option>
-                  {products.map((p) => (
+                  {productsForActions.map((p) => (
                     <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>
                   ))}
                 </select>

@@ -21,12 +21,13 @@ async function main() {
   const userHash = await bcrypt.hash("user123", 10);
   await prisma.user.upsert({
     where: { email: "admin@etablissement.local" },
-    update: { password: adminHash },
+    update: { password: adminHash, allowedProductTypes: null },
     create: {
       name: "Administrateur",
       email: "admin@etablissement.local",
       password: adminHash,
       role: "admin",
+      allowedProductTypes: null, // null = tous les types
     },
   });
   await prisma.user.upsert({
@@ -41,13 +42,23 @@ async function main() {
     },
   });
 
+  let catBureau = await prisma.productCategory.findFirst({ where: { name: "Bureautique" } });
+  if (!catBureau) catBureau = await prisma.productCategory.create({ data: { name: "Bureautique", productType: "consumable" } });
+  let catInfo = await prisma.productCategory.findFirst({ where: { name: "Informatique" } });
+  if (!catInfo) catInfo = await prisma.productCategory.create({ data: { name: "Informatique", productType: "equipment" } });
   let prod = await prisma.product.findFirst();
   if (!prod) {
     prod = await prisma.product.create({
-      data: { name: "Papier A4", category: "bureau", unit: "rame", minimumThreshold: 10 },
+      data: { name: "Papier A4", productType: "consumable", category: catBureau.name, categoryId: catBureau.id, unit: "rame", minimumThreshold: 10 },
     });
     await prisma.stockEntry.create({
       data: { productId: prod.id, quantity: 50, supplier: "Fournisseur Bureau", invoiceNumber: "FAC-2025-001" },
+    });
+    const pc = await prisma.product.create({
+      data: { name: "Ordinateur portable", productType: "equipment", category: catInfo.name, categoryId: catInfo.id, unit: "unité", minimumThreshold: 0 },
+    });
+    await prisma.stockEntry.create({
+      data: { productId: pc.id, quantity: 5, supplier: "Fournisseur IT", invoiceNumber: "IT-2025-001" },
     });
   }
 

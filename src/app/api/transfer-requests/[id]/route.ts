@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { getAllowedTypes } from "@/lib/product-types";
 
 async function getEmployeeBalance(employeeId: string, productId: string): Promise<number> {
   const [exits, outTransfers, inTransfers] = await Promise.all([
@@ -39,6 +40,10 @@ export async function PATCH(
     });
     if (!tr) return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
     if (tr.status !== "pending") return NextResponse.json({ error: "Demande déjà traitée" }, { status: 400 });
+    const allowed = getAllowedTypes((session.user as { allowedProductTypes?: string }).allowedProductTypes);
+    const productType = (tr.product as { productType?: string }).productType ?? "equipment";
+    if (allowed && !allowed.includes(productType as "equipment" | "consumable"))
+      return NextResponse.json({ error: "Vous n'avez pas le droit d'approuver ce type de produit" }, { status: 403 });
 
     const fromEmployeeId = (tr.requestedBy as { employeeId?: string | null }).employeeId;
     if (!fromEmployeeId) return NextResponse.json({ error: "Demandeur sans employé associé" }, { status: 400 });
@@ -102,8 +107,21 @@ export async function PATCH(
 
     const updated = await prisma.transferRequest.findUnique({
       where: { id },
-      include: { product: true, toEmployee: true, requestedBy: { select: { name: true, email: true } } },
+      include: { product: true, toEmployee: true, requestedBy: { select: { id: true, name: true, email: true } } },
     });
+    const { createNotification } = await import("@/lib/notifications");
+    const requesterId = (updated?.requestedBy as { id?: string })?.id;
+    if (requesterId) {
+      const productName = updated?.product?.name ?? "Produit";
+      const qty = updated?.quantity ?? 0;
+      await createNotification({
+        userId: requesterId,
+        type: newStatus === "approved" ? "transfer_request_approved" : "transfer_request_rejected",
+        title: newStatus === "approved" ? "Demande acceptée" : "Demande refusée",
+        message: newStatus === "approved" ? `Votre demande de ${qty} ${productName} a été acceptée.` : `Votre demande de ${qty} ${productName} a été refusée.`,
+        relatedId: id,
+      }).catch(() => {});
+    }
     return NextResponse.json(updated);
   } catch (e) {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

@@ -8,16 +8,48 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(cuid())
-  name        String
-  email       String    @unique
-  password    String    // hash bcrypt
-  role        String    // admin | user (user = employé avec compte)
-  employeeId  String?   @unique // lien vers l'employé (un compte par employé)
-  createdAt   DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  name               String
+  email              String    @unique
+  password           String    // hash bcrypt
+  role               String    // admin | user (user = employé avec compte)
+  employeeId         String?   @unique // lien vers l'employé (un compte par employé)
+  allowedProductTypes String?  // admin: "equipment" | "consumable" | "equipment,consumable" | null = tous
+  createdAt          DateTime  @default(now())
   employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   transferRequestsRequested TransferRequest[] @relation("RequestedBy")
   transferRequestsDecided   TransferRequest[] @relation("DecidedBy")
+  notifications      Notification[] @relation("NotificationUser")
+  messagesSent       Message[] @relation("MessageFrom")
+  messagesReceived   Message[] @relation("MessageTo")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // transfer_request_new | transfer_request_approved | transfer_request_rejected | stock_low | stock_rupture | message | complaint
+  title     String
+  message   String
+  relatedId String?  // transferRequestId, productId, messageId, etc.
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation("NotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id         String    @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  subject    String
+  body       String
+  isComplaint Boolean  @default(false)
+  read       Boolean   @default(false)
+  parentId   String?   // pour les réponses
+  createdAt  DateTime  @default(now())
+  fromUser   User      @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User      @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  parent     Message?  @relation("Replies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies    Message[] @relation("Replies")
 }
 
 model TransferRequest {
@@ -86,9 +118,10 @@ model Supplier {
 }
 
 model ProductCategory {
-  id        String    @id @default(cuid())
-  name      String
-  products  Product[]
+  id          String    @id @default(cuid())
+  name        String
+  productType String    @default("equipment") // equipment | consumable
+  products    Product[]
 }
 
 model Unit {
@@ -142,12 +175,13 @@ model Product {
   id                String            @id @default(cuid())
   name              String
   code              String?           // code produit
-  barcode           String?            // code-barres
+  barcode           String?           // code-barres
+  productType       String            @default("equipment") // equipment | consumable
   category          String
   categoryId        String?
   unit              String
   unitId            String?
-  minimumThreshold  Int                @default(0)
+  minimumThreshold  Int               @default(0)
   productCategory   ProductCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   unitRef           Unit?             @relation(fields: [unitId], references: [id], onDelete: SetNull)
   entries           StockEntry[]
